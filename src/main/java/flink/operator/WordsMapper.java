@@ -1,11 +1,12 @@
 package flink.operator;
 
+import flink.model.Message;
 import org.apache.flink.api.common.functions.MapFunction;
 
-public class WordsMapper implements MapFunction<String, String> {
+public class WordsMapper implements MapFunction<Message, String> {
 
     @Override
-    public String map(String s) {
-        return String.valueOf(s.length());
+    public String map(Message s) {
+        return s.getUuid()+ " - " + "\"" + s.getMessage() + "\"" + " from " + s.getSender() + " to " + s.getRecipient();
     }
 }
