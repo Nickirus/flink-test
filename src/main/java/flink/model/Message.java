@@ -2,6 +2,7 @@ package flink.model;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -11,9 +12,33 @@ public class Message {
     private String recipient;
     private UUID uuid;
     private String message;
+    private Integer sum;
+    private LocalDateTime sentAt;
 
     public Message() {
         this.uuid = UUID.randomUUID();
+        this.sentAt = LocalDateTime.now();
+
+        //для демонстрации, что работает Watermark в MessageTimestampAssigner для EventTime
+//        this.sentAt = LocalDateTime.now().plusSeconds(3);
+
+//        this.sentAt = LocalDateTime.of(2020,12,24,12,0);
+    }
+
+    public LocalDateTime getSentAt() {
+        return sentAt;
+    }
+
+    public void setSentAt(LocalDateTime sentAt) {
+        this.sentAt = sentAt;
+    }
+
+    public Integer getSum() {
+        return sum;
+    }
+
+    public void setSum(Integer sum) {
+        this.sum = sum;
     }
 
     public String getSender() {
