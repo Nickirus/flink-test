@@ -21,23 +21,9 @@ import java.util.stream.Collectors;
     }
 
     @Override
-    public List<Message> add(Message inputMessage, List<Message> inputMessages) {
-        inputMessages.add(inputMessage);
-        return inputMessages.stream().distinct().collect(Collectors.toList());
-//        boolean flag = false;
-//        for (Message message : inputMessages) {
-//            if (message.getSender().equals(inputMessage.getSender())
-//                    && message.getRecipient().equals(inputMessage.getRecipient())
-//                    && message.getSum() != null
-//                    && inputMessage.getSum() != null) {
-//                message.setSum(message.getSum() + inputMessage.getSum());
-//                flag = true;
-//            }
-//        }
-//        if (!flag) {
-//            inputMessages.add(inputMessage);
-//        }
-//        return inputMessages;
+    public List<Message> add(Message message, List<Message> messages) {
+        messages.add(message);
+        return messages.stream().distinct().collect(Collectors.toList());
     }
 
     @Override

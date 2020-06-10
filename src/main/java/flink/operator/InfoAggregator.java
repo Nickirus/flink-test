@@ -28,10 +28,10 @@ public class InfoAggregator implements AggregateFunction<Message, List<Message>,
             sum += message.getSum();
         }
         return String.valueOf(LocalDateTime.now()).concat(
-                String.format(" - During the last 15 seconds the user-%s sent %s messages. Total amount is %s - %s",
+                String.format(" - During the last 15 seconds the user-%s sent %s messages. Total amount is %s.",
                         inputMessages.get(0).getSender(),
                         inputMessages.size(),
-                        sum, inputMessages.get(0).getUuid()));
+                        sum));
     }
 
     @Override
