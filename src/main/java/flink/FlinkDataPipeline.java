@@ -14,6 +14,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -22,12 +23,15 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.util.Collector;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 import static flink.kafka.connector.Consumer.createMessageConsumer;
 import static flink.kafka.connector.Producer.*;
+
+/**
+ * https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/operators/
+ * https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/operators/windows.html
+ */
 
 @SuppressWarnings("serial")
 public class FlinkDataPipeline {
@@ -38,7 +42,7 @@ public class FlinkDataPipeline {
 
     private static void simplePipeline() throws Exception {
         StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
-        //Для просмотра веб-морды на http://localhost:8081
+        //Для просмотра веб-морды flink на http://localhost:8081
 //        StreamExecutionEnvironment environment;
 //        Configuration conf = new Configuration();
 //        environment = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
@@ -57,8 +61,7 @@ public class FlinkDataPipeline {
 //                .filter((FilterFunction<Message>) value -> value.getSum() != null)
                 .flatMap(new FlatMapFunction<Message, String>() {
                     @Override
-                    public void flatMap(Message message, Collector<String> out)
-                            throws Exception {
+                    public void flatMap(Message message, Collector<String> out) {
                         for (String word : message.getMessage().split(" ")) {
                             out.collect(word);
                         }
@@ -71,7 +74,7 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
-    private static void simplePipelineWitKeySelector() throws Exception {
+    private static void simplePipelineWithKeySelector() throws Exception {
         StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
 
         FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
@@ -90,7 +93,6 @@ public class FlinkDataPipeline {
                 .timeWindow(Time.seconds(15))
                 .aggregate(new InfoAggregator())
                 .addSink(flinkKafkaProducer);
-
 
         environment.execute("Flink Data Pipeline");
     }
@@ -148,6 +150,7 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
+    //заменить на reduce
     private static void deduplicateWithTimeWindow() throws Exception {
         StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -210,14 +213,37 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
+    private static void pipelineWithSessionWindow() throws Exception {
+        StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
+        //Для считывания с последнего offset
+        flinkKafkaConsumer.setStartFromLatest();
+
+        FlinkKafkaProducer011<Snapshot> flinkKafkaProducer = createSnapshotProducer(OUTPUT_TOPIC, ADDRESS);
+
+        DataStream<Message> messagesStream = environment.addSource(flinkKafkaConsumer);
+
+        //Определение сессионного gap в зависимости от отправителя
+        messagesStream
+                .keyBy("sender")
+                .window(ProcessingTimeSessionWindows.withDynamicGap((message) -> message.getSender().equals("User0")
+                        ? 10000 : 12000))
+                .aggregate(new SnapshotAggregator())
+                .addSink(flinkKafkaProducer);
+
+        environment.execute("Flink Data Pipeline");
+    }
+
     public static void main(String[] args) throws Exception {
         simplePipeline();
 //        reducePipeline();
-//        simplePipelineWitKeySelector();
+//        simplePipelineWithKeySelector();
 //        aggregationWithTimeWindow();
 //        deduplicateWithTimeWindow();
 //        pipelineWithProcessTime();
 //        pipelineWithEventTime();
+//        pipelineWithSessionWindow();
     }
 
 }
