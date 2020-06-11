@@ -9,9 +9,16 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.CEP;
+import org.apache.flink.cep.PatternSelectFunction;
+import org.apache.flink.cep.PatternStream;
+import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
@@ -24,6 +31,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.util.Collector;
 
 import java.util.List;
+import java.util.Map;
 
 import static flink.kafka.connector.Consumer.createMessageConsumer;
 import static flink.kafka.connector.Producer.*;
@@ -31,6 +39,7 @@ import static flink.kafka.connector.Producer.*;
 /**
  * https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/operators/
  * https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/operators/windows.html
+ * https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/libs/cep.html
  */
 
 @SuppressWarnings("serial")
@@ -174,7 +183,7 @@ public class FlinkDataPipeline {
         StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
 
         FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
-        flinkKafkaConsumer.setStartFromEarliest();
+        flinkKafkaConsumer.setStartFromLatest();
 
         FlinkKafkaProducer011<Snapshot> flinkKafkaProducer = createSnapshotProducer(OUTPUT_TOPIC, ADDRESS);
 
@@ -235,15 +244,57 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
+    private static void pipelineWithPattern() throws Exception {
+        StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
+        //Для считывания с последнего offset
+        flinkKafkaConsumer.setStartFromLatest();
+
+        FlinkKafkaProducer011<String> flinkKafkaProducer = createStringProducer(OUTPUT_TOPIC, ADDRESS);
+
+        DataStream<Message> messagesStream = environment.addSource(flinkKafkaConsumer);
+        Pattern<Message, ?> pattern = Pattern.<Message>begin("start").where(
+                new SimpleCondition<Message>() {
+                    @Override
+                    public boolean filter(Message event) {
+                        return event.getSum() == 0;
+                    }
+                }
+        ).next("middle").where(
+                new SimpleCondition<Message>() {
+                    @Override
+                    public boolean filter(Message event) {
+                        return event.getSum() == 1;
+                    }
+                }
+        ).next("end").where(
+                new SimpleCondition<Message>() {
+                    @Override
+                    public boolean filter(Message event) {
+                        return event.getSum() == 2;
+                    }
+                }
+        );
+
+        PatternStream<Message> patternStream = CEP.pattern(messagesStream, pattern);
+
+        patternStream.select(
+                (PatternSelectFunction<Message, String>) map -> "Detected!").addSink(flinkKafkaProducer);
+
+        environment.execute("Flink Data Pipeline");
+    }
+
     public static void main(String[] args) throws Exception {
-        simplePipeline();
-//        reducePipeline();
-//        simplePipelineWithKeySelector();
-//        aggregationWithTimeWindow();
-//        deduplicateWithTimeWindow();
-//        pipelineWithProcessTime();
-//        pipelineWithEventTime();
-//        pipelineWithSessionWindow();
+        simplePipeline();//#1
+//        simplePipelineWithKeySelector();//#2
+//        reducePipeline();//#3
+//        aggregationWithTimeWindow();//#4
+//        deduplicateWithTimeWindow();//#5
+//        pipelineWithProcessTime();//#6
+//        pipelineWithEventTime();//#7
+//        pipelineWithSessionWindow();//#8
+//        pipelineWithPattern();//#9
     }
 
 }
