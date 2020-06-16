@@ -28,7 +28,11 @@ public class DataGenerator {
                 final long timeout = 5000;
                 while (this.running) {
                     Message message = new Message();
-                    message.setSender("User0");
+                    if(i<2) {
+                        message.setSender("User0");
+                    } else {
+                        message.setSender("User0"+i);
+                    }
                     message.setRecipient("User1");
                     message.setSum(1);
                     message.setMessage(String.format("Hi, how are you - %s?", i++));

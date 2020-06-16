@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * При наличие во временном окне еще одной такого же сообщения,
  * но с другой суммой, нужно схлопнуть это сообщение в одно и сумму сложить
  */
-    public class CollapseAggregator implements AggregateFunction<Message, List<Message>, List<Message>> {
+public class CollapseAggregator implements AggregateFunction<Message, List<Message>, Snapshot> {
 
     @Override
     public List<Message> createAccumulator() {
@@ -21,14 +21,25 @@ import java.util.stream.Collectors;
     }
 
     @Override
-    public List<Message> add(Message message, List<Message> messages) {
-        messages.add(message);
-        return messages.stream().distinct().collect(Collectors.toList());
+    public List<Message> add(Message newMessage, List<Message> messages) {
+        boolean flag = false;
+        for (Message message : messages) {
+            if (message.getSender().equals(newMessage.getSender())
+                    || message.getRecipient().equals(newMessage.getRecipient())) {
+                message.setSum(message.getSum() + newMessage.getSum());
+                flag = true;
+                break;
+            }
+        }
+        if (!flag) {
+            messages.add(newMessage);
+        }
+        return messages;
     }
 
     @Override
-    public List<Message> getResult(List<Message> messages) {
-        return messages;
+    public Snapshot getResult(List<Message> messages) {
+        return new Snapshot(messages, LocalDateTime.now());
     }
 
     @Override
