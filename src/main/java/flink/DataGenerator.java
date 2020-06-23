@@ -5,15 +5,17 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.springframework.stereotype.Component;
 
 import static flink.kafka.connector.Producer.createMessageProducer;
 
+@Component
 public class DataGenerator {
 
     private static final String OUTPUT_TOPIC = "test";
-    private static final String ADDRESS = "localhost:9092";
+    private static final String ADDRESS = "127.0.0.1:9092";
 
-    private static void generate() throws Exception {
+    public void generate() throws Exception {
 
         StreamExecutionEnvironment environment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
@@ -55,8 +57,8 @@ public class DataGenerator {
         environment.execute("Write messages into Kafka");
     }
 
-    public static void main(String[] args) throws Exception {
-        generate();
-    }
+//    public static void main(String[] args) throws Exception {
+//        generate();
+//    }
 }
 

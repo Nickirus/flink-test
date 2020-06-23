@@ -3,7 +3,10 @@ package flink;
 
 import flink.model.Message;
 import flink.model.Snapshot;
-import flink.operator.*;
+import flink.operator.CollapseAggregator;
+import flink.operator.InfoAggregator;
+import flink.operator.MessageTimestampAssigner;
+import flink.operator.SnapshotAggregator;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -13,6 +16,7 @@ import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -22,6 +26,9 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import static flink.kafka.connector.Consumer.createMessageConsumer;
 import static flink.kafka.connector.Producer.*;
@@ -33,11 +40,14 @@ import static flink.kafka.connector.Producer.*;
  */
 
 @SuppressWarnings("serial")
+@Component
 public class FlinkDataPipeline {
+
+    static final Logger log = LoggerFactory.getLogger(FlinkDataPipeline.class);
 
     private static final String INPUT_TOPIC = "test";
     private static final String OUTPUT_TOPIC = "test_out";
-    private static final String ADDRESS = "localhost:9092";
+    private static final String ADDRESS = "127.0.0.1:9092";
 
     private static void simplePipeline() throws Exception {
         StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -73,8 +83,7 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
-    private static void simplePipelineWithKeySelector() throws Exception {
-        StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+    public JobClient simplePipelineWithKeySelector(StreamExecutionEnvironment environment) throws Exception {
 
         FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
         flinkKafkaConsumer.setStartFromEarliest();
@@ -93,7 +102,7 @@ public class FlinkDataPipeline {
                 .aggregate(new InfoAggregator())
                 .addSink(flinkKafkaProducer);
 
-        environment.execute("Flink Data Pipeline");
+        return environment.executeAsync("Flink Data Pipeline");
     }
 
     private static void reducePipeline() throws Exception {
@@ -150,9 +159,7 @@ public class FlinkDataPipeline {
     }
 
     //Агрегация с дизъюнкцией событий по ключам
-    private static void logicalAdditionByKeysWithTimeWindow() throws Exception {
-        StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
-
+    public JobClient logicalAdditionByKeysWithTimeWindow(StreamExecutionEnvironment environment) throws Exception {
         FlinkKafkaConsumer011<Message> flinkKafkaConsumer = createMessageConsumer(INPUT_TOPIC, ADDRESS);
         flinkKafkaConsumer.setStartFromLatest();
 
@@ -165,7 +172,7 @@ public class FlinkDataPipeline {
                 .aggregate(new CollapseAggregator())
                 .addSink(flinkKafkaProducer);
 
-        environment.execute("Flink Data Pipeline");
+        return environment.executeAsync("Flink Data Pipeline");
     }
 
     private static void pipelineWithProcessTime() throws Exception {
@@ -274,16 +281,16 @@ public class FlinkDataPipeline {
         environment.execute("Flink Data Pipeline");
     }
 
-    public static void main(String[] args) throws Exception {
-//        simplePipeline();//#1
-//        simplePipelineWithKeySelector();//#2
-//        reducePipeline();//#3
-//        aggregationWithTimeWindow();//#4
-        logicalAdditionByKeysWithTimeWindow();//#5
-//        pipelineWithProcessTime();//#6
-//        pipelineWithEventTime();//#7
-//        pipelineWithSessionWindow();//#8
-//        pipelineWithPattern();//#9
-    }
+//    public static void main(String[] args) throws Exception {
+////        simplePipeline();//#1
+////        simplePipelineWithKeySelector();//#2
+////        reducePipeline();//#3
+////        aggregationWithTimeWindow();//#4
+//        logicalAdditionByKeysWithTimeWindow();//#5
+////        pipelineWithProcessTime();//#6
+////        pipelineWithEventTime();//#7
+////        pipelineWithSessionWindow();//#8
+////        pipelineWithPattern();//#9
+//    }
 
 }
